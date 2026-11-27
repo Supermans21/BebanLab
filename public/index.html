@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Alat uji beban HTTP localhost, grafik throughput dan latensi p95 real-time, serta audit header keamanan.">
+  <title>BebanLab - Uji Beban &amp; Audit Header Localhost</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600&family=IBM+Plex+Sans:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M2 12L5.5 7.5L9 9.5L14 3.5"/>
+            <path d="M2 14H14"/>
+          </svg>
+        </span>
+        <span>BebanLab</span>
+      </a>
+
+      <nav class="nav-tabs" role="tablist" aria-label="Menu utama">
+        <button class="nav-tab" type="button" role="tab" id="tab-btn-load" aria-selected="true" aria-controls="panel-load" data-tab="load">
+          Uji beban
+        </button>
+        <button class="nav-tab" type="button" role="tab" id="tab-btn-audit" aria-selected="false" aria-controls="panel-audit" data-tab="audit">
+          Cek keamanan
+        </button>
+        <button class="nav-tab" type="button" role="tab" id="tab-btn-history" aria-selected="false" aria-controls="panel-history" data-tab="history">
+          Riwayat
+        </button>
+        <button class="nav-tab" type="button" role="tab" id="tab-btn-docs" aria-selected="false" aria-controls="panel-docs" data-tab="docs">
+          Dokumentasi
+        </button>
+      </nav>
+
+      <div class="topbar-actions">
+        <a class="target-link" id="open-target-link" href="http://localhost:3001" target="_blank" rel="noopener noreferrer">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+            <path d="M6 3H3V13H13V10"/>
+            <path d="M9 3H13V7"/>
+            <path d="M13 3L7 9"/>
+          </svg>
+          <span>Buka target localhost:3001</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container workspace">
+    <!-- TAB 1: UJI BEBAN -->
+    <section id="panel-load" role="tabpanel" aria-labelledby="tab-btn-load">
+      <div class="screen-header">
+        <div class="screen-title-group">
+          <h1>Uji kekuatan server localhost</h1>
+          <p class="screen-desc">Kirim permintaan HTTP nyata secara bersamaan untuk melihat grafik throughput, latensi p95, dan titik jenuh website target Anda.</p>
+        </div>
+        <div class="run-state" id="live-status" aria-live="polite">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+            <circle cx="8" cy="8" r="5.5"/>
+            <path d="M8 5V8L10 9.5"/>
+          </svg>
+          <span id="live-status-text">Siap menguji</span>
+        </div>
+      </div>
+
+      <!-- Preset & Konfigurasi -->
+      <div class="cut panel-pad section-block">
+        <div class="panel-head">
+          <h2>Skenario dan parameter</h2>
+          <span class="panel-sub">Pilih preset untuk demo localhost:3001 atau masukkan URL localhost Anda sendiri</span>
+        </div>
+
+        <div class="tray" role="group" aria-label="Preset pengujian cepat">
+          <button type="button" class="tray-key" data-preset="home" aria-pressed="false">
+            <span class="tray-key-title">Halaman utama</span>
+            <span class="tray-key-path" data-preset-path="home">localhost:3001/</span>
+          </button>
+          <button type="button" class="tray-key" data-preset="products" aria-pressed="true">
+            <span class="tray-key-title">API katalog cepat</span>
+            <span class="tray-key-path" data-preset-path="products">localhost:3001/api/products</span>
+          </button>
+          <button type="button" class="tray-key" data-preset="search" aria-pressed="false">
+            <span class="tray-key-title">Pencarian 5.000 data</span>
+            <span class="tray-key-path" data-preset-path="search">localhost:3001/api/search?q=server</span>
+          </button>
+          <button type="button" class="tray-key" data-preset="heavy" aria-pressed="false">
+            <span class="tray-key-title">Uji batas kuat (berat)</span>
+            <span class="tray-key-path" data-preset-path="heavy">localhost:3001/api/heavy</span>
+          </button>
+          <button type="button" class="tray-key" data-preset="high200" aria-pressed="false">
+            <span class="tray-key-title">Beban tinggi 200 user</span>
+            <span class="tray-key-path" data-preset-path="high200">20 sampai 200 user</span>
+          </button>
+        </div>
+
+        <form id="load-form" novalidate>
+          <div class="config-grid">
+            <label class="field field--span-2">
+              <span class="field-label">URL target (bebas localhost atau LAN)</span>
+              <input class="input input--mono" type="url" id="input-url" name="url" value="http://localhost:3001/api/products" required>
+            </label>
+
+            <label class="field">
+              <span class="field-label">Metode HTTP</span>
+              <select class="input" id="input-method" name="method">
+                <option value="GET">GET</option>
+                <option value="POST">POST</option>
+                <option value="PUT">PUT</option>
+                <option value="PATCH">PATCH</option>
+                <option value="DELETE">DELETE</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span class="field-label">Pola beban</span>
+              <select class="input" id="input-mode" name="mode">
+                <option value="ramp">Bertahap linear</option>
+                <option value="step">Bertangga (step-up)</option>
+                <option value="constant">Konstan (stabil)</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span class="field-label">User awal</span>
+              <input class="input input--mono" type="number" id="input-start-users" name="startUsers" min="1" value="5" required>
+            </label>
+
+            <label class="field">
+              <span class="field-label">User maksimal (tanpa batas)</span>
+              <input class="input input--mono" type="number" id="input-users" name="maxUsers" min="1" value="40" required>
+            </label>
+
+            <label class="field">
+              <span class="field-label">Durasi total (detik)</span>
+              <input class="input input--mono" type="number" id="input-duration" name="durationSec" min="1" value="15" required>
+            </label>
+
+            <label class="field">
+              <span class="field-label">Jarak antar request (ms)</span>
+              <input class="input input--mono" type="number" id="input-think" name="thinkTimeMs" min="0" value="40" required>
+            </label>
+          </div>
+
+          <details class="advanced-box">
+            <summary class="advanced-summary">Pengaturan lanjutan: step-up, timeout, header, dan body</summary>
+            <div class="advanced-grid">
+              <label class="field">
+                <span class="field-label">Tambah user per tangga (mode bertangga)</span>
+                <input class="input input--mono" type="number" id="input-step-users" name="stepUsers" min="1" value="20">
+              </label>
+
+              <label class="field">
+                <span class="field-label">Jarak waktu antar tangga (detik)</span>
+                <input class="input input--mono" type="number" id="input-step-interval" name="stepIntervalSec" min="1" value="5">
+              </label>
+
+              <label class="field">
+                <span class="field-label">Batas timeout per request (ms)</span>
+                <input class="input input--mono" type="number" id="input-timeout" name="timeoutMs" min="100" value="5000">
+              </label>
+
+              <label class="field">
+                <span class="field-label">Custom header (satu Header: nilai per baris)</span>
+                <textarea class="textarea" id="input-headers" placeholder="Authorization: Bearer token&#10;X-Custom-Test: 1"></textarea>
+              </label>
+
+              <label class="field field--span-2">
+                <span class="field-label">Payload body (untuk metode POST, PUT, PATCH)</span>
+                <textarea class="textarea" id="input-body" placeholder='{"contoh":"data"}'></textarea>
+              </label>
+            </div>
+          </details>
+
+          <label class="remote-confirm" id="remote-confirm-wrap" hidden>
+            <input type="checkbox" id="input-allow-remote">
+            <span>Saya menyatakan domain eksternal ini milik saya atau telah mendapat izin untuk diuji bebannya.</span>
+          </label>
+
+          <div class="form-error" id="load-error" role="alert" hidden></div>
+
+          <div class="action-bar">
+            <div class="action-buttons">
+              <button type="submit" class="key key--primary" id="btn-start">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                  <path d="M4 3L13 8L4 13V3Z"/>
+                </svg>
+                <span>Mulai uji beban</span>
+              </button>
+              <button type="button" class="key key--danger" id="btn-stop" disabled>
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                  <rect x="4" y="4" width="8" height="8"/>
+                </svg>
+                <span>Hentikan</span>
+              </button>
+            </div>
+            <div class="action-buttons">
+              <button type="button" class="key key--small" id="btn-export-pdf" disabled>Cetak / PDF</button>
+              <button type="button" class="key key--small" id="btn-export-report" disabled>Unduh Laporan (.md)</button>
+              <button type="button" class="key key--small" id="btn-export-json" disabled>Unduh JSON</button>
+              <button type="button" class="key key--small" id="btn-export-csv" disabled>Unduh CSV</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- Signature: Live Ruler Chart & 50-Cell Monospace Meter -->
+      <div class="cut panel-pad section-block">
+        <div class="panel-head">
+          <h2>Grafik telemetri real-time</h2>
+          <div class="chart-legend" aria-label="Legenda grafik">
+            <span class="legend-item"><span class="legend-swatch"></span><span>RPS (req/dtk)</span></span>
+            <span class="legend-item"><span class="legend-swatch legend-swatch--lat"></span><span>Latensi p95 (ms)</span></span>
+            <span class="legend-item"><span class="legend-swatch legend-swatch--vu"></span><span>User aktif</span></span>
+            <span class="legend-item"><span class="legend-swatch legend-swatch--err"></span><span>Error</span></span>
+          </div>
+        </div>
+
+        <div class="signature-grid">
+          <div class="chart-frame">
+            <div class="canvas-wrap" id="chart-container">
+              <canvas class="telemetry-canvas" id="telemetry-canvas" aria-label="Grafik beban RPS dan latensi p95 per detik"></canvas>
+              <div class="chart-tooltip" id="chart-tooltip" hidden></div>
+            </div>
+          </div>
+
+          <aside class="meter-panel" aria-label="Meteran throughput langsung">
+            <div>
+              <div class="field-label">Throughput saat ini</div>
+              <div class="big-figure" id="meter-rps">0</div>
+              <div class="big-unit" id="meter-unit">Belum ada data pengujian</div>
+            </div>
+
+            <div>
+              <div class="field-label">Skala saturasi 50 sel</div>
+              <div class="mono-meter" id="mono-meter" aria-label="Meteran 50 sel saturasi latensi"></div>
+            </div>
+
+            <div class="meter-meta">
+              <div>
+                <div class="meta-cell-label">User aktif</div>
+                <div class="meta-cell-val" id="meter-vu">0 user</div>
+              </div>
+              <div>
+                <div class="meta-cell-label">Latensi p95</div>
+                <div class="meta-cell-val" id="meter-p95">0 ms</div>
+              </div>
+              <div>
+                <div class="meta-cell-label">Tingkat error</div>
+                <div class="meta-cell-val" id="meter-err">0%</div>
+              </div>
+              <div>
+                <div class="meta-cell-label">Memori target</div>
+                <div class="meta-cell-val" id="meter-rss">Belum diukur</div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+
+      <!-- Verdict -->
+      <div class="verdict-box section-block" id="verdict-box" hidden>
+        <div class="verdict-copy">
+          <div class="verdict-title" id="verdict-title">Kesimpulan pengujian</div>
+          <p class="simple-copy" id="verdict-text"></p>
+          <p class="tech-note" id="verdict-tech"></p>
+        </div>
+      </div>
+
+      <!-- Analisis Fakta, Titik Down, dan Solusi -->
+      <div class="cut section-block" id="diagnosis-section" hidden>
+        <div class="panel-pad panel-head">
+          <h2>Analisis fakta, titik down, dan solusi</h2>
+          <span class="panel-sub" id="diag-subtitle">Ringkasan kondisi server berdasarkan data pengujian aktual</span>
+        </div>
+
+        <div class="table-scroll">
+          <table class="ledger">
+            <thead>
+              <tr>
+                <th>Fase beban</th>
+                <th>Titik terukur</th>
+                <th>Detail kondisi</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Kapasitas aman terakhir</td>
+                <td class="mono" id="diag-safe">Belum ada data</td>
+                <td class="text-muted">Beban tertinggi dengan p95 di bawah 500 ms dan 0% error</td>
+              </tr>
+              <tr>
+                <td>Mulai melambat</td>
+                <td class="mono" id="diag-slow">Tidak terjadi</td>
+                <td class="text-muted">Titik pertama saat latensi p95 melewati 500 ms</td>
+              </tr>
+              <tr>
+                <td>Error / timeout pertama</td>
+                <td class="mono" id="diag-first-err">Tidak terjadi</td>
+                <td class="text-muted">Detik pertama ketika server mulai gagal atau timeout</td>
+              </tr>
+              <tr>
+                <td>Titik jenuh (breaking point)</td>
+                <td class="mono" id="diag-break">Tidak terjadi</td>
+                <td class="text-muted">Titik pertama saat p95 melewati 1000 ms atau error di atas 1%</td>
+              </tr>
+              <tr class="row-highlight">
+                <td>Mayoritas gagal (&gt;= 50% error)</td>
+                <td class="mono" id="diag-down">Tidak terjadi</td>
+                <td class="text-muted">Sebagian besar permintaan gagal ditangani server</td>
+              </tr>
+              <tr class="row-highlight">
+                <td>Down total (0 sukses)</td>
+                <td class="mono" id="diag-total-down">Tidak terjadi</td>
+                <td class="text-muted">Tidak ada lagi permintaan yang berhasil dijawab server (2xx = 0)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="panel-pad diag-block">
+          <h3 class="diag-subhead">Fakta lapangan terukur</h3>
+          <ul class="diag-list" id="diag-facts"></ul>
+        </div>
+
+        <div class="table-scroll">
+          <table class="ledger">
+            <thead>
+              <tr>
+                <th>Area</th>
+                <th>Temuan fakta</th>
+                <th>Solusi dan saran</th>
+              </tr>
+            </thead>
+            <tbody id="diag-rec-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Ruled Metric Ledger -->
+      <div class="cut section-block">
+        <div class="panel-pad panel-head">
+          <h2>Ringkasan metrik terukur</h2>
+          <span class="panel-sub" id="ledger-context">Menunggu pengujian dijalankan</span>
+        </div>
+        <div class="table-scroll">
+          <table class="ledger">
+            <thead>
+              <tr>
+                <th>Metrik</th>
+                <th>Nilai terukur</th>
+                <th>Arti untuk pengguna</th>
+              </tr>
+            </thead>
+            <tbody id="ledger-body">
+              <tr>
+                <td>Total permintaan</td>
+                <td class="mono" id="m-total">Belum diuji</td>
+                <td class="text-muted">Jumlah seluruh HTTP request yang selesai dikirim</td>
+              </tr>
+              <tr>
+                <td>Berhasil (2xx / 3xx)</td>
+                <td class="mono" id="m-ok">Belum diuji</td>
+                <td class="text-muted">Permintaan yang ditangani normal tanpa error server</td>
+              </tr>
+              <tr>
+                <td>Gagal (4xx / 5xx / timeout)</td>
+                <td class="mono" id="m-err">Belum diuji</td>
+                <td class="text-muted">Permintaan gagal atau terputus saat beban naik</td>
+              </tr>
+              <tr class="row-highlight">
+                <td>Persentil 95 (p95)</td>
+                <td class="mono" id="m-p95">Belum diuji</td>
+                <td class="text-muted">95% user mendapat respons secepat angka ini (ideal di bawah 500 ms)</td>
+              </tr>
+              <tr>
+                <td>Rata-rata / Median (p50) / p99</td>
+                <td class="mono" id="m-lat-pack">Belum diuji</td>
+                <td class="text-muted">Sebaran waktu respons dari tengah hingga ekor terlambat</td>
+              </tr>
+              <tr>
+                <td>Puncak dan rata-rata RPS</td>
+                <td class="mono" id="m-rps-pack">Belum diuji</td>
+                <td class="text-muted">Kapasitas permintaan per detik yang sanggup dilayani server</td>
+              </tr>
+              <tr>
+                <td>Bandwidth diterima</td>
+                <td class="mono" id="m-kb">Belum diuji</td>
+                <td class="text-muted">Total data respons yang dikirim server selama pengujian</td>
+              </tr>
+              <tr>
+                <td>Titik jenuh (breaking point)</td>
+                <td class="mono" id="m-bp">Belum diuji</td>
+                <td class="text-muted">Detik pertama ketika p95 melewati 1000 ms atau error di atas 1%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Single Graphite Band: Live Raw Telemetry Console -->
+      <div class="graphite section-block">
+        <div class="graphite-head">
+          <span class="graphite-title">Log telemetri per detik</span>
+          <span class="graphite-sub" id="console-meta">Siap menerima aliran SSE dari /api/test/stream</span>
+        </div>
+        <div class="graphite-body" id="telemetry-console">Belum ada log pengujian. Jalankan uji beban di atas untuk melihat catatan per detik secara langsung.</div>
+      </div>
+    </section>
+
+    <!-- TAB 2: CEK KEAMANAN -->
+    <section id="panel-audit" role="tabpanel" aria-labelledby="tab-btn-audit" hidden>
+      <div class="screen-header">
+        <div class="screen-title-group">
+          <h1>Audit header keamanan HTTP</h1>
+          <p class="screen-desc">Periksa respons HTTP nyata dari website target untuk mengecek perlindungan dasar XSS, clickjacking, MIME sniffing, cookie, dan kebocoran identitas server.</p>
+        </div>
+      </div>
+
+      <div class="cut panel-pad section-block">
+        <form id="audit-form" class="audit-form" novalidate>
+          <label class="field">
+            <span class="field-label">URL website untuk diperiksa</span>
+            <input class="input input--mono" type="url" id="audit-url" value="http://localhost:3001/" required>
+          </label>
+          <button type="submit" class="key key--primary" id="btn-audit-run">Periksa header</button>
+          <button type="button" class="key" id="btn-audit-hardened">Uji versi aman</button>
+        </form>
+        <div class="form-error" id="audit-error" role="alert" hidden></div>
+      </div>
+
+      <div class="cut section-block" id="audit-result-card" hidden>
+        <div class="audit-summary-row">
+          <div>
+            <div class="field-label">Skor header keamanan</div>
+            <div class="audit-score" id="audit-score">0 / 0</div>
+          </div>
+          <div class="mono text-muted" id="audit-meta"></div>
+          <div class="action-buttons">
+            <button type="button" class="key key--small" id="btn-audit-export-pdf">Cetak / PDF</button>
+            <button type="button" class="key key--small" id="btn-audit-export-md">Unduh Laporan (.md)</button>
+            <button type="button" class="key key--small" id="btn-audit-export-json">Unduh JSON</button>
+            <button type="button" class="key key--small" id="btn-audit-export-csv">Unduh CSV</button>
+          </div>
+        </div>
+        <div class="panel-pad diag-block" id="audit-summary-box" hidden>
+          <div class="verdict-title" id="audit-summary-title">Ringkasan audit</div>
+          <p class="simple-copy" id="audit-summary-simple"></p>
+          <p class="tech-note" id="audit-summary-tech"></p>
+        </div>
+        <div class="table-scroll">
+          <table class="ledger">
+            <thead>
+              <tr>
+                <th>Pemeriksaan</th>
+                <th>Status</th>
+                <th>Nilai header aktual</th>
+                <th>Penjelasan dan perbaikan</th>
+              </tr>
+            </thead>
+            <tbody id="audit-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="graphite section-block" id="audit-raw-card" hidden>
+        <div class="graphite-head">
+          <span class="graphite-title">Header HTTP mentah dari server</span>
+          <span class="graphite-sub" id="audit-raw-url"></span>
+        </div>
+        <div class="graphite-body" id="audit-raw-body"></div>
+      </div>
+    </section>
+
+    <!-- TAB 3: RIWAYAT -->
+    <section id="panel-history" role="tabpanel" aria-labelledby="tab-btn-history" hidden>
+      <div class="screen-header">
+        <div class="screen-title-group">
+          <h1>Riwayat pengujian tersimpan</h1>
+          <p class="screen-desc">Bandingkan dua sesi pengujian sebelum dan sesudah optimasi, atau klik lihat grafik untuk menampilkan data lengkapnya kembali.</p>
+        </div>
+        <div class="action-buttons">
+          <button type="button" class="key key--small key--primary" id="btn-compare-runs" disabled>Bandingkan (0/2)</button>
+          <button type="button" class="key key--small" id="btn-clear-compare" hidden>Reset pilihan</button>
+          <button type="button" class="key key--small" id="btn-refresh-history">Muat ulang</button>
+        </div>
+      </div>
+
+      <div class="cut section-block" id="compare-panel" hidden>
+        <div class="panel-pad panel-head">
+          <h2>Perbandingan dua pengujian (A vs B)</h2>
+          <span class="panel-sub" id="compare-summary-text"></span>
+        </div>
+        <div class="table-scroll">
+          <table class="ledger">
+            <thead>
+              <tr>
+                <th>Metrik</th>
+                <th id="cmp-head-a">Pengujian A</th>
+                <th id="cmp-head-b">Pengujian B</th>
+                <th>Selisih (B terhadap A)</th>
+              </tr>
+            </thead>
+            <tbody id="compare-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="cut section-block">
+        <div class="table-scroll">
+          <table class="ledger">
+            <thead>
+              <tr>
+                <th>Pilih</th>
+                <th>Waktu</th>
+                <th>Target URL</th>
+                <th>Pola dan user</th>
+                <th>Puncak sukses</th>
+                <th>Latensi p95</th>
+                <th>Error</th>
+                <th>Hasil</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="history-tbody">
+              <tr>
+                <td colspan="9" class="empty-state">Belum ada riwayat pengujian tersimpan.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: DOKUMENTASI -->
+    <section id="panel-docs" role="tabpanel" aria-labelledby="tab-btn-docs" hidden>
+      <div class="screen-header">
+        <div class="screen-title-group">
+          <h1>Panduan penggunaan dan referensi API</h1>
+          <p class="screen-desc">Arti setiap angka pengujian dalam bahasa sehari-hari, setelan skenario yang disarankan, serta endpoint REST dan SSE untuk otomatisasi.</p>
+        </div>
+      </div>
+
+      <div class="cut section-block">
+        <div class="panel-pad panel-head">
+          <h2>Kamus metrik uji beban</h2>
+          <span class="panel-sub">Penjelasan sederhana untuk membaca grafik dan tabel hasil</span>
+        </div>
+        <div class="table-scroll">
+          <table class="ledger">
+            <thead>
+              <tr>
+                <th>Istilah</th>
+                <th>Arti sederhana (bahasa sehari-hari)</th>
+                <th>Arti teknis</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="mono">VU (User aktif)</td>
+                <td>Jumlah pengunjung yang aktif mengakses halaman bersamaan</td>
+                <td class="text-muted">Virtual Users / goroutine loop HTTP konkuren dengan jeda thinkTimeMs</td>
+              </tr>
+              <tr>
+                <td class="mono">RPS sukses</td>
+                <td>Berapa orang yang berhasil dilayani server dalam 1 detik</td>
+                <td class="text-muted">Permintaan berstatus HTTP 2xx/3xx per detik (tidak menghitung timeout/error)</td>
+              </tr>
+              <tr>
+                <td class="mono">p50 dan p95</td>
+                <td>Waktu tunggu rata-rata (p50) dan waktu tunggu 95% pengunjung (p95)</td>
+                <td class="text-muted">Persentil ke-50 dan ke-95 dari sampel latensi (ideal p95 di bawah 500 ms)</td>
+              </tr>
+              <tr>
+                <td class="mono">Titik jenuh</td>
+                <td>Jumlah user saat antrean mulai macet dan terasa lemot</td>
+                <td class="text-muted">Detik pertama ketika p95 melewati 1000 ms atau errorRate di atas 1%</td>
+              </tr>
+              <tr>
+                <td class="mono">Down total</td>
+                <td>Jumlah user saat server tidak sanggup menjawab satu pun lagi</td>
+                <td class="text-muted">Detik ketika okCount sama dengan 0 dan seluruh permintaan gagal</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="cut section-block">
+        <div class="panel-pad panel-head">
+          <h2>Rekomendasi setelan skenario</h2>
+          <span class="panel-sub">Gunakan pola Bertangga (step) agar hasil paling realistis dan aman</span>
+        </div>
+        <div class="table-scroll">
+          <table class="ledger">
+            <thead>
+              <tr>
+                <th>Tujuan tes</th>
+                <th>Pola dan parameter</th>
+                <th>Kapan digunakan</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Pengunjung normal</td>
+                <td class="mono">step, 10 ke 300 user, 120s, jeda 1000 ms</td>
+                <td class="text-muted">Meniru manusia asli yang membaca halaman sebelum klik berikutnya</td>
+              </tr>
+              <tr>
+                <td>Stress test cepat</td>
+                <td class="mono">step, 20 ke 500 user, 90s, jeda 250 ms</td>
+                <td class="text-muted">Mencari titik melambat dan titik down pada simulasi lonjakan ramai</td>
+              </tr>
+              <tr>
+                <td>Uji ketahanan (soak)</td>
+                <td class="mono">constant, 70% batas aman, 180s, jeda 1000 ms</td>
+                <td class="text-muted">Memastikan memori server stabil dan tidak bocor saat dipakai lama</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="cut panel-pad section-block">
+        <div class="panel-head">
+          <h2>Perintah cepat API lokal</h2>
+          <span class="panel-sub">Jalankan lewat terminal atau CI tanpa membuka browser</span>
+        </div>
+        <div class="cmd-list">
+          <div class="cmd-chip">
+            <code class="cmd-code" id="cmd-start-load">curl -X POST http://localhost:3000/api/test/start -H "Content-Type: application/json" -d "{\"url\":\"http://localhost:3001/api/products\",\"mode\":\"ramp\",\"startUsers\":10,\"maxUsers\":50,\"durationSec\":10}"</code>
+            <button type="button" class="key key--small" data-copy-target="cmd-start-load">Salin</button>
+          </div>
+          <div class="cmd-chip">
+            <code class="cmd-code" id="cmd-audit">curl -X POST http://localhost:3000/api/audit -H "Content-Type: application/json" -d "{\"url\":\"http://localhost:3001/\"}"</code>
+            <button type="button" class="key key--small" data-copy-target="cmd-audit">Salin</button>
+          </div>
+          <div class="cmd-chip">
+            <code class="cmd-code" id="cmd-health">curl http://localhost:3000/api/health</code>
+            <button type="button" class="key key--small" data-copy-target="cmd-health">Salin</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="./charts.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

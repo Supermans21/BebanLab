@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Website demo katalog produk di localhost port 3001 sebagai target uji beban dan audit keamanan BebanLab.">
+  <title>Toko Demo Localhost - Target Uji BebanLab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600&family=IBM+Plex+Sans:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="2.5" y="3.5" width="11" height="9" rx="1"/>
+            <path d="M2.5 7H13.5"/>
+          </svg>
+        </span>
+        <span>Katalog Target Localhost</span>
+      </a>
+      <div class="topbar-actions">
+        <a class="target-link" href="http://localhost:3000" target="_blank" rel="noopener noreferrer">
+          <span>Buka dashboard BebanLab</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container workspace">
+    <div class="screen-header">
+      <div class="screen-title-group">
+        <h1>Website demo target di port 3001</h1>
+        <p class="screen-desc">Aplikasi ini berjalan pada proses Node.js terpisah agar pengukuran latensi dan beban CPU tetap akurat saat diuji dari BebanLab.</p>
+      </div>
+      <div class="run-state run-state--ok" id="target-health-badge">
+        <span id="target-health-text">Memuat status proses…</span>
+      </div>
+    </div>
+
+    <div class="cut section-block">
+      <div class="panel-pad panel-head">
+        <h2>Endpoint siap diuji</h2>
+        <span class="panel-sub">Empat karakteristik beban berbeda pada satu server</span>
+      </div>
+      <div class="table-scroll">
+        <table class="ledger">
+          <thead>
+            <tr>
+              <th>Endpoint</th>
+              <th>Karakteristik beban</th>
+              <th>Kegunaan saat uji</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">GET /</td>
+              <td>Render HTML statis</td>
+              <td class="text-muted">Mengukur kapasitas halaman depan dan audit header keamanan</td>
+            </tr>
+            <tr>
+              <td class="mono">GET /api/products</td>
+              <td>JSON ringan dari memori</td>
+              <td class="text-muted">Baseline RPS tinggi untuk membandingkan overhead jaringan</td>
+            </tr>
+            <tr>
+              <td class="mono">GET /api/search?q=server</td>
+              <td>Filter dan sortir 5.000 item</td>
+              <td class="text-muted">Simulasi pencarian database skala menengah</td>
+            </tr>
+            <tr class="row-highlight">
+              <td class="mono">GET /api/heavy</td>
+              <td>Komputasi PBKDF2-SHA256 nyata</td>
+              <td class="text-muted">Menunjukkan kurva kenaikan latensi dan titik jenuh server secara langsung</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="cut panel-pad section-block">
+      <div class="panel-head">
+        <h2>Pencarian katalog langsung</h2>
+        <span class="panel-sub" id="catalog-count">Memuat katalog…</span>
+      </div>
+
+      <form id="search-form" class="search-row">
+        <label class="field">
+          <span class="field-label">Cari nama produk, kategori, atau SKU</span>
+          <input class="input" type="search" id="search-input" placeholder="Contoh: server, sensor, BL-00010">
+        </label>
+        <button type="submit" class="key key--primary">Cari data</button>
+      </form>
+
+      <div class="table-scroll">
+        <table class="ledger">
+          <thead>
+            <tr>
+              <th>SKU</th>
+              <th>Nama produk</th>
+              <th>Kategori</th>
+              <th>Gudang</th>
+              <th>Harga (IDR)</th>
+              <th>Stok</th>
+            </tr>
+          </thead>
+          <tbody id="catalog-tbody">
+            <tr>
+              <td colspan="6" class="empty-state">Memuat data produk…</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const tbody = document.getElementById('catalog-tbody');
+    const countEl = document.getElementById('catalog-count');
+    const healthText = document.getElementById('target-health-text');
+    const searchForm = document.getElementById('search-form');
+    const searchInput = document.getElementById('search-input');
+
+    function formatIdr(val) {
+      return new Intl.NumberFormat('id-ID').format(val);
+    }
+
+    function renderItems(items, label) {
+      countEl.textContent = label;
+      tbody.textContent = '';
+      if (!items.length) {
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 6;
+        td.className = 'empty-state';
+        td.textContent = 'Tidak ada produk cocok dengan kata kunci tersebut.';
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+        return;
+      }
+      items.forEach((item) => {
+        const tr = document.createElement('tr');
+        const cells = [
+          { text: item.sku, cls: 'mono' },
+          { text: item.name, cls: '' },
+          { text: item.category, cls: '' },
+          { text: item.warehouse, cls: 'mono' },
+          { text: formatIdr(item.priceIdr), cls: 'mono' },
+          { text: String(item.stock), cls: 'mono' },
+        ];
+        cells.forEach((c) => {
+          const td = document.createElement('td');
+          if (c.cls) td.className = c.cls;
+          td.textContent = c.text;
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function loadProducts() {
+      const res = await fetch('/api/products');
+      const data = await res.json();
+      renderItems(data.items || [], `Menampilkan ${data.items.length} dari ${data.total} item`);
+    }
+
+    async function loadHealth() {
+      try {
+        const res = await fetch('/health');
+        const h = await res.json();
+        healthText.textContent = `PID ${h.pid} | RSS ${h.rssMB} MB | Koneksi aktif ${h.activeConnections}`;
+      } catch {
+        healthText.textContent = 'Status proses tidak tersedia';
+      }
+    }
+
+    searchForm.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const q = searchInput.value.trim();
+      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      renderItems(data.items || [], `Ditemukan ${data.totalMatched} item (menampilkan ${data.items.length})`);
+    });
+
+    loadProducts();
+    loadHealth();
+    setInterval(loadHealth, 3000);
+  </script>
+</body>
+</html>

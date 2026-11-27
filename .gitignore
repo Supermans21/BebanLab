@@ -1,0 +1,7 @@
+data/runs.json
+.hallmark-kit/
+.hallmark/
+node_modules/
+reports/
+laporan-*.pdf
+laporan-*.md
