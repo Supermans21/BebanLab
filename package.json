@@ -6,11 +6,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Supermans21/Manstest.git"
+    "url": "https://github.com/Supermans21/BebanLab.git"
   },
-  "homepage": "https://github.com/Supermans21/Manstest#readme",
+  "homepage": "https://github.com/Supermans21/BebanLab#readme",
   "bugs": {
-    "url": "https://github.com/Supermans21/Manstest/issues"
+    "url": "https://github.com/Supermans21/BebanLab/issues"
   },
   "engines": {
     "node": ">=20.0.0"

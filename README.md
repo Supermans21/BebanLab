@@ -5,6 +5,7 @@
 ![Node.js](https://img.shields.io/badge/Node.js-%3E%3D20.0.0-1d4ed8?style=flat-square)
 ![Dependencies](https://img.shields.io/badge/Dependencies-Zero-15803d?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-3b465c?style=flat-square)
+[![CI](https://github.com/Supermans21/BebanLab/actions/workflows/ci.yml/badge.svg)](https://github.com/Supermans21/BebanLab/actions/workflows/ci.yml)
 
 ![Tampilan Dashboard BebanLab](docs/screenshot-dashboard.png)
 
@@ -45,8 +46,8 @@ Banyak alat uji beban hanya memuntahkan angka teknis mentah (`p95`, `RPS`, `ETIM
 Prasyarat: **Node.js v20 atau lebih baru** (tidak perlu `npm install` karena tidak memakai paket pihak ketiga).
 
 ```bash
-git clone https://github.com/Supermans21/Manstest.git
-cd Manstest
+git clone https://github.com/Supermans21/BebanLab.git
+cd BebanLab
 npm start
 ```
 
